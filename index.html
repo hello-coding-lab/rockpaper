@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>가위바위보 게임</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <style>
+    :root {
+      --bg: #ffffff;
+      --text: #111;
+      --card: #f3f3f3;
+    }
+
+    body.dark {
+      --bg: #111;
+      --text: #f3f3f3;
+      --card: #1e1e1e;
+    }
+
+    body {
+      margin: 0;
+      font-family: Arial, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      transition: 0.3s;
+    }
+
+    .container {
+      max-width: 800px;
+      margin: auto;
+      padding: 20px;
+      text-align: center;
+    }
+
+    .top-bar {
+      display: flex;
+      justify-content: flex-end;
+    }
+
+    .toggle {
+      padding: 8px 12px;
+      cursor: pointer;
+      border-radius: 8px;
+      border: none;
+    }
+
+    .choices button {
+      margin: 10px;
+      padding: 15px 25px;
+      font-size: 18px;
+      cursor: pointer;
+      border-radius: 10px;
+    }
+
+    .choices button:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    .card {
+      background: var(--card);
+      padding: 15px;
+      margin-top: 20px;
+      border-radius: 12px;
+    }
+
+    canvas {
+      margin-top: 20px;
+      max-height: 300px;
+    }
+
+    .battle {
+      font-size: 60px;
+      margin: 20px 0;
+      display: flex;
+      justify-content: space-around;
+    }
+
+    .shake {
+      animation: shake 0.5s infinite;
+    }
+
+    @keyframes shake {
+      0% { transform: translateY(0); }
+      25% { transform: translateY(-10px); }
+      50% { transform: translateY(0); }
+      75% { transform: translateY(10px); }
+      100% { transform: translateY(0); }
+    }
+
+    .result-animate {
+      animation: pop 0.3s ease;
+    }
+
+    @keyframes pop {
+      0% { transform: scale(0.5); }
+      100% { transform: scale(1); }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="top-bar">
+      <button class="toggle" onclick="toggleTheme()">🌙/☀️</button>
+    </div>
+
+    <h1>✊ 가위 ✌️ 바위 ✋ 보 게임</h1>
+
+    <div class="battle">
+      <div id="userHand">❔</div>
+      <div id="computerHand">❔</div>
+    </div>
+
+    <div class="choices">
+      <button onclick="play('rock')">✊ 바위</button>
+      <button onclick="play('paper')">✋ 보</button>
+      <button onclick="play('scissors')">✌️ 가위</button>
+    </div>
+
+    <div class="card">
+      <p id="result">결과가 여기에 표시됩니다</p>
+      <p id="score">승: 0 | 패: 0 | 무: 0</p>
+    </div>
+
+    <div class="card">
+      <h3>승률 그래프</h3>
+      <canvas id="chart"></canvas>
+    </div>
+  </div>
+
+  <script>
+    let win = 0, lose = 0, draw = 0;
+    let chart;
+
+    const handMap = {
+      rock: '✊',
+      paper: '✋',
+      scissors: '✌️'
+    };
+
+    window.onload = function () {
+      const ctx = document.getElementById('chart');
+
+      chart = new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels: [],
+          datasets: [{
+            label: '승률 (%)',
+            data: [],
+            fill: false,
+            tension: 0.2
+          }]
+        },
+        options: {
+          responsive: true,
+          scales: {
+            y: {
+              beginAtZero: true,
+              max: 100
+            }
+          }
+        }
+      });
+    };
+
+    function play(user) {
+      const buttons = document.querySelectorAll('.choices button');
+      buttons.forEach(btn => btn.disabled = true);
+
+      const userEl = document.getElementById('userHand');
+      const compEl = document.getElementById('computerHand');
+
+      // 흔들기 애니메이션 시작
+      userEl.classList.add('shake');
+      compEl.classList.add('shake');
+
+      userEl.innerText = '✊';
+      compEl.innerText = '✊';
+
+      setTimeout(() => {
+        const choices = ['rock', 'paper', 'scissors'];
+        const computer = choices[Math.floor(Math.random() * 3)];
+
+        userEl.classList.remove('shake');
+        compEl.classList.remove('shake');
+
+        userEl.innerText = handMap[user];
+        compEl.innerText = handMap[computer];
+
+        userEl.classList.add('result-animate');
+        compEl.classList.add('result-animate');
+
+        let result = '';
+
+        if (user === computer) {
+          draw++;
+          result = '무승부!';
+        } else if (
+          (user === 'rock' && computer === 'scissors') ||
+          (user === 'paper' && computer === 'rock') ||
+          (user === 'scissors' && computer === 'paper')
+        ) {
+          win++;
+          result = '승리!';
+        } else {
+          lose++;
+          result = '패배!';
+        }
+
+        document.getElementById('result').innerText =
+          `결과 → ${result}`;
+
+        document.getElementById('score').innerText =
+          `승: ${win} | 패: ${lose} | 무: ${draw}`;
+
+        updateChart();
+
+        setTimeout(() => {
+          userEl.classList.remove('result-animate');
+          compEl.classList.remove('result-animate');
+          buttons.forEach(btn => btn.disabled = false);
+        }, 300);
+
+      }, 1000); // 1초 흔들기
+    }
+
+    function updateChart() {
+      if (!chart) return;
+
+      const total = win + lose + draw;
+      const rate = total === 0 ? 0 : ((win / total) * 100).toFixed(1);
+
+      chart.data.labels.push(total);
+      chart.data.datasets[0].data.push(rate);
+      chart.update();
+    }
+
+    function toggleTheme() {
+      document.body.classList.toggle('dark');
+    }
+  </script>
+</body>
+</html>
